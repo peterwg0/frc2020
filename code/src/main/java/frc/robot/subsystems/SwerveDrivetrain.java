@@ -14,11 +14,13 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.kauailabs.navx.frc.AHRS;
 
+import frc.robot.common.Location;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.controller.PIDController;
+import edu.wpi.first.wpilibj.geometry.Pose2d;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.kinematics.SwerveDriveKinematics;
@@ -58,12 +60,13 @@ public class SwerveDrivetrain extends TraceableSubsystem implements IDrivetrainS
     private SwerveDriveKinematics m_kinematics;
     private AHRS m_gyro;
     private PIDController m_pidController;
-    private SwerveDriveOdometry m_currentOdometry;
+    private SwerveDriveOdometry m_odometry;
+    private Location m_location;
     
     private boolean m_isTurning;
 
     @Inject
-    public SwerveDrivetrain(final ILogger logger, final RobotConfig config) {
+    public SwerveDrivetrain(final ILogger logger, final RobotConfig config, final Location location) {
 
         super(logger);
         _config = config;
@@ -107,8 +110,8 @@ public class SwerveDrivetrain extends TraceableSubsystem implements IDrivetrainS
         
         m_pidController.setSetpoint(m_gyro.getAngle());
 
-        m_currentOdometry = new SwerveDriveOdometry(m_kinematics, new Rotation2d(0));
-
+        m_location = location;
+        m_odometry = new SwerveDriveOdometry(m_kinematics, new Rotation2d(Math.toRadians(location.getHeading())), new Pose2d(location.getPosition().getX(), location.getPosition().getY(), new Rotation2d(Math.toRadians(location.getHeading()))));
     }
 
 
@@ -193,8 +196,11 @@ public class SwerveDrivetrain extends TraceableSubsystem implements IDrivetrainS
         m_backLeft.setDesiredState(swerveModuleStates[2], this.getMaxSpeed());
         m_backRight.setDesiredState(swerveModuleStates[3], this.getMaxSpeed());
 
-        m_currentOdometry.update(new Rotation2d(Math.toRadians(m_gyro.getAngle())), m_frontLeft.getState(), m_frontRight.getState(), m_backLeft.getState(), m_backRight.getState());
-        SmartDashboard.putString("Current pose", m_currentOdometry.getPoseMeters().toString());
+        m_odometry.update(new Rotation2d(Math.toRadians(m_gyro.getAngle())), m_frontLeft.getState(), m_frontRight.getState(), m_backLeft.getState(), m_backRight.getState());
+        SmartDashboard.putString("Current pose", m_odometry.getPoseMeters().toString());
+        m_location.updateHeading(m_gyro.getAngle());
+        m_location.updatePosition(new Position(m_odometry.getPoseMeters().getTranslation().getX(),m_odometry.getPoseMeters().getTranslation().getY()));
+        SmartDashboard.putString("Current location", m_location.toString());
 
         // this.getLogger("frontLeft: ", m)
 
